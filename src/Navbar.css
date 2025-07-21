@@ -1,0 +1,23 @@
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #0052cc;
+    padding: 0px 20px;
+    height: 60px;
+}
+.left, .right {
+    flex: 1;
+}
+.center {
+    flex: 2;
+    text-align: center;
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.logo {
+   height: 60px;
+}
+
