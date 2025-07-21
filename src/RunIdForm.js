@@ -91,10 +91,28 @@ const styles = {
 
 export default function RunIdForm() {
   const [runId, setRunId] = useState("");
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert(`Submitted Run ID: ${runId}`);
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    try {
+      const response = await fetch(`/api/fetch_run_data/?runid=${runId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch data");
+      }
+      const text = await response.text();
+      setData(text);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -141,6 +159,18 @@ export default function RunIdForm() {
             </button>
           </div>
         </form>
+        <div style={{ marginTop: "32px", width: "100%" }}>
+          {loading && <p>Loading...</p>}
+          {error && <p style={{ color: "red" }}>Error: {error}</p>}
+          {data && (
+            <div>
+              <h3>Result:</h3>
+              <pre style={{ background: "#f4f4f4", padding: "1rem", overflowX: "auto" }}>
+                {data}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
