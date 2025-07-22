@@ -11,7 +11,7 @@ def fetch_run_data(request):
     if not runid:
         return JsonResponse({'error': 'Missing runid parameter'}, status=400)
 
-    url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{runid}?req_fields=purpose,user,peak_mbs"
+    url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{runid}?req_fields=purpose,user,peak_mbs,workload,peak_iter,ontap_ver,peak_ops,peak_lat"
     try:
         response = requests.get(url)
         response.raise_for_status()
