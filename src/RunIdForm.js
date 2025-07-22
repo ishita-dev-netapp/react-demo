@@ -1,94 +1,7 @@
-import React, { useState } from "react";
-import Navbar from "./Navbar";
-const styles = {
-  header: {
-    background: "#2056ac",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 32px",
-    height: "56px",
-    position: "relative",
-  },
-  logoSection: {
-    display: "flex",
-    alignItems: "center",
-    minWidth: "180px", // Ensures enough space for logo+text
-  },
-  logoImg: {
-    width: "32px",
-    height: "32px",
-    objectFit: "contain",
-    marginRight: "10px",
-    background: "white",
-    borderRadius: "2px",
-    padding: "2px",
-  },
-  logoText: {
-    fontWeight: "bold",
-    fontSize: "2rem",
-    letterSpacing: "1px",
-    color: "#fff",
-  },
-  centerText: {
-    fontWeight: "bold",
-    fontSize: "1.2rem",
-    textAlign: "center",
-    flex: 1,
-    color: "#fff",
-  },
-  rightSection: {
-    minWidth: "180px", // Matches logoSection for symmetry
-  },
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginTop: "60px",
-  },
-  form: {
-    marginTop: "32px",
-    background: "#fff",
-    padding: "32px 40px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-    minWidth: "480px",
-  },
-  title: {
-    fontSize: "2.2rem",
-    fontWeight: "bold",
-    marginBottom: "16px",
-  },
-  subtitle: {
-    fontSize: "1.1rem",
-    marginBottom: "32px",
-    color: "#444",
-  },
-  label: {
-    fontWeight: "bold",
-    marginRight: "12px",
-    fontSize: "1.1rem",
-  },
-  input: {
-    padding: "10px 14px",
-    fontSize: "1.1rem",
-    border: "1px solid #ccc",
-    borderRadius: "4px",
-    width: "260px",
-    marginRight: "16px",
-  },
-  button: {
-    padding: "10px 28px",
-    fontSize: "1.1rem",
-    background: "#2056ac",
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-};
-// Key display name mapping
+import React, { useState } from 'react';
+import Navbar from './Navbar';
+import './RunIdForm.css';
+
 const keyDisplayNames = {
   purpose: "Test Purpose",
   user: "User",
@@ -98,8 +11,8 @@ const keyDisplayNames = {
   ontap_ver: "ONTAP Version",
   peak_ops: "Achieved Ops",
   peak_lat: "Latency",
-  // Add more mappings as needed
 };
+
 const metricKeys = [
   "purpose",
   "user",
@@ -111,7 +24,6 @@ const metricKeys = [
   "peak_lat",
 ];
 
-// Optional value formatting
 function formatValue(key, value) {
   if (key === "peak_mbs") {
     return `${value} MB/s`;
@@ -122,14 +34,13 @@ function formatValue(key, value) {
   if (key === "peak_lat" && value !== "-1") {
     return `${value} ms`;
   }
-  // Add more formatting as needed
   return value;
 }
 
 export default function RunIdForm() {
   const [runId1, setRunId1] = useState("");
   const [runId2, setRunId2] = useState("");
-  const [results, setResults] = useState([]); // [{runId, data}]
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -166,27 +77,19 @@ export default function RunIdForm() {
     }
   };
 
-
   function ResultTable({ data, runId }) {
     if (!data) return null;
     return (
-      <div style={{
-        maxWidth: "600px",
-        margin: "32px auto",
-        background: "#f9f9f9",
-        borderRadius: "8px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-        padding: "24px"
-      }}>
-        <h3 style={{ marginBottom: "16px" }}>Result for <span style={{ color: "#2056ac" }}>{runId}</span>:</h3>
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
+      <div className="result-table">
+        <h3>Result for <span className="run-id">{runId}</span>:</h3>
+        <table>
           <tbody>
             {Object.entries(data).map(([key, value]) => (
               <tr key={key}>
-                <td style={{ border: "1px solid #ccc", padding: "8px", fontWeight: "bold", width: "40%" }}>
+                <td className="table-key">
                   {keyDisplayNames[key] || key}
                 </td>
-                <td style={{ border: "1px solid #ccc", padding: "8px" }}>
+                <td className="table-value">
                   {formatValue(key, value)}
                 </td>
               </tr>
@@ -200,63 +103,61 @@ export default function RunIdForm() {
   return (
     <div>
       <Navbar />
-      <div style={styles.container}>
-        <form style={styles.form} onSubmit={handleSubmit}>
-          <div style={styles.title}>Compare Two Run IDs</div>
-          <div style={styles.subtitle}>
+      <div className="container">
+        <form className="form" onSubmit={handleSubmit}>
+          <div className="title">Compare Two Run IDs</div>
+          <div className="subtitle">
             Provide one or two valid run IDs to retrieve and compare performance data from Grover.
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <label htmlFor="runId1" style={styles.label}>Run ID 1:</label>
+          <div className="input-group">
+            <label htmlFor="runId1" className="label">Run ID 1:</label>
             <input
               id="runId1"
               type="text"
               placeholder="e.g. 231218hha"
               value={runId1}
               onChange={(e) => setRunId1(e.target.value)}
-              style={styles.input}
+              className="input"
               required={!runId2}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "16px" }}>
-            <label htmlFor="runId2" style={styles.label}>Run ID 2:</label>
+          <div className="input-group" style={{ marginTop: "16px" }}>
+            <label htmlFor="runId2" className="label">Run ID 2:</label>
             <input
               id="runId2"
               type="text"
               placeholder="e.g. 231219xyz"
               value={runId2}
               onChange={(e) => setRunId2(e.target.value)}
-              style={styles.input}
+              className="input"
               required={!runId1}
             />
           </div>
-          <button type="submit" style={{ ...styles.button, marginTop: "24px" }}>Compare</button>
+          <button type="submit" className="button" style={{ marginTop: "24px" }}>Compare</button>
         </form>
 
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>Error: {error}</p>}
         {results.length === 2 && (
-          <div style={{ marginTop: "32px", width: "100%" }}>
+          <div className="comparison-table">
             <h3>Comparison Table</h3>
-            <table style={{ borderCollapse: "collapse", width: "100%" }}>
+            <table>
               <thead>
                 <tr>
-                  <th style={{ border: "1px solid #ccc", padding: "8px" }}>Metric</th>
+                  <th>Metric</th>
                   {results.map(({ runId }) => (
-                    <th key={runId} style={{ border: "1px solid #ccc", padding: "8px" }}>
-                      {runId}
-                    </th>
+                    <th key={runId}>{runId}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {metricKeys.map((key) => (
                   <tr key={key}>
-                    <td style={{ border: "1px solid #ccc", padding: "8px", fontWeight: "bold" }}>
+                    <td className="table-key">
                       {keyDisplayNames[key] || key}
                     </td>
                     {results.map(({ data, runId }) => (
-                      <td key={runId} style={{ border: "1px solid #ccc", padding: "8px" }}>
+                      <td key={runId} className="table-value">
                         {formatValue(key, data[key]) || "-"}
                       </td>
                     ))}
