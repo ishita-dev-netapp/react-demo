@@ -88,26 +88,77 @@ const styles = {
     cursor: "pointer",
   },
 };
+// Key display name mapping
+const keyDisplayNames = {
+  purpose: "Test Purpose",
+  user: "User",
+  peak_mbs: "Peak MB/s",
+  workload: "Workload Type",
+  peak_iter: "Peak Iteration",
+  ontap_ver: "ONTAP Version",
+  peak_ops: "Achieved Ops",
+  peak_lat: "Latency",
+  // Add more mappings as needed
+};
+const metricKeys = [
+  "purpose",
+  "user",
+  "peak_mbs",
+  "workload",
+  "peak_iter",
+  "ontap_ver",
+  "peak_ops",
+  "peak_lat",
+];
+
+// Optional value formatting
+function formatValue(key, value) {
+  if (key === "peak_mbs") {
+    return `${value} MB/s`;
+  }
+  if (key === "peak_ops") {
+    return `${value} ops`;
+  }
+  if (key === "peak_lat" && value !== "-1") {
+    return `${value} ms`;
+  }
+  // Add more formatting as needed
+  return value;
+}
 
 export default function RunIdForm() {
-  const [runId, setRunId] = useState("");
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+  const [runId1, setRunId1] = useState("");
+  const [runId2, setRunId2] = useState("");
+  const [results, setResults] = useState([]); // [{runId, data}]
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setData(null);
+    setResults([]);
 
     try {
-      const response = await fetch(`/api/fetch_run_data/?runid=${runId}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
+      const runIds = [runId1, runId2];
+      const newResults = [];
+      for (const runId of runIds) {
+        const response = await fetch(`/api/fetch_run_data/?runid=${runId}`);
+        if (!response.ok) throw new Error("Failed to fetch data for " + runId);
+        const text = await response.text();
+        let obj = null;
+        try {
+          obj = JSON.parse(text);
+        } catch {
+          obj = null;
+        }
+        if (obj) {
+          newResults.push({ runId, data: obj });
+        } else {
+          setError("Invalid data format for " + runId);
+        }
       }
-      const text = await response.text();
-      setData(text);
+      setResults(newResults);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -115,62 +166,106 @@ export default function RunIdForm() {
     }
   };
 
+
+  function ResultTable({ data, runId }) {
+    if (!data) return null;
+    return (
+      <div style={{
+        maxWidth: "600px",
+        margin: "32px auto",
+        background: "#f9f9f9",
+        borderRadius: "8px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+        padding: "24px"
+      }}>
+        <h3 style={{ marginBottom: "16px" }}>Result for <span style={{ color: "#2056ac" }}>{runId}</span>:</h3>
+        <table style={{ borderCollapse: "collapse", width: "100%" }}>
+          <tbody>
+            {Object.entries(data).map(([key, value]) => (
+              <tr key={key}>
+                <td style={{ border: "1px solid #ccc", padding: "8px", fontWeight: "bold", width: "40%" }}>
+                  {keyDisplayNames[key] || key}
+                </td>
+                <td style={{ border: "1px solid #ccc", padding: "8px" }}>
+                  {formatValue(key, value)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* Header */}
-      <div>
-         <Navbar />
-       </div>
-      {/* <div style={styles.header}>
-        <div style={styles.logoSection}>
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/5/5b/NetApp_logo.svg"
-            alt="NetApp Logo"
-            style={styles.logoImg}
-          />
-          <span style={styles.logoText}>NetApp</span>
-        </div>
-        <div style={styles.centerText}>Perf Data visualization</div>
-        <div style={styles.rightSection}></div>
-      //</div> */}
-
-      {/* Main Content */}
+      <Navbar />
       <div style={styles.container}>
         <form style={styles.form} onSubmit={handleSubmit}>
-          <div style={styles.title}>Enter Your Run ID</div>
+          <div style={styles.title}>Compare Two Run IDs</div>
           <div style={styles.subtitle}>
-            Provide a valid run ID to retrieve performance data from Grover.
+            Provide one or two valid run IDs to retrieve and compare performance data from Grover.
           </div>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <label htmlFor="runId" style={styles.label}>
-              Run ID:
-            </label>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <label htmlFor="runId1" style={styles.label}>Run ID 1:</label>
             <input
-              id="runId"
+              id="runId1"
               type="text"
               placeholder="e.g. 231218hha"
-              value={runId}
-              onChange={(e) => setRunId(e.target.value)}
+              value={runId1}
+              onChange={(e) => setRunId1(e.target.value)}
               style={styles.input}
-              required
+              required={!runId2}
             />
-            <button type="submit" style={styles.button}>
-              Submit
-            </button>
           </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "16px" }}>
+            <label htmlFor="runId2" style={styles.label}>Run ID 2:</label>
+            <input
+              id="runId2"
+              type="text"
+              placeholder="e.g. 231219xyz"
+              value={runId2}
+              onChange={(e) => setRunId2(e.target.value)}
+              style={styles.input}
+              required={!runId1}
+            />
+          </div>
+          <button type="submit" style={{ ...styles.button, marginTop: "24px" }}>Compare</button>
         </form>
-        <div style={{ marginTop: "32px", width: "100%" }}>
-          {loading && <p>Loading...</p>}
-          {error && <p style={{ color: "red" }}>Error: {error}</p>}
-          {data && (
-            <div>
-              <h3>Result:</h3>
-              <pre style={{ background: "#f4f4f4", padding: "1rem", overflowX: "auto" }}>
-                {data}
-              </pre>
-            </div>
-          )}
-        </div>
+
+        {loading && <p>Loading...</p>}
+        {error && <p style={{ color: "red" }}>Error: {error}</p>}
+        {results.length === 2 && (
+          <div style={{ marginTop: "32px", width: "100%" }}>
+            <h3>Comparison Table</h3>
+            <table style={{ borderCollapse: "collapse", width: "100%" }}>
+              <thead>
+                <tr>
+                  <th style={{ border: "1px solid #ccc", padding: "8px" }}>Metric</th>
+                  {results.map(({ runId }) => (
+                    <th key={runId} style={{ border: "1px solid #ccc", padding: "8px" }}>
+                      {runId}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {metricKeys.map((key) => (
+                  <tr key={key}>
+                    <td style={{ border: "1px solid #ccc", padding: "8px", fontWeight: "bold" }}>
+                      {keyDisplayNames[key] || key}
+                    </td>
+                    {results.map(({ data, runId }) => (
+                      <td key={runId} style={{ border: "1px solid #ccc", padding: "8px" }}>
+                        {formatValue(key, data[key]) || "-"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
