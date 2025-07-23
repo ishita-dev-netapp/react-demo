@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Navbar from './Navbar';
 import './RunIdForm.css';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
 } from 'recharts';
 
 const keyDisplayNames = {
@@ -13,7 +13,15 @@ const keyDisplayNames = {
   peak_iter: "Peak Iteration",
   ontap_ver: "ONTAP Version",
   peak_ops: "Achieved Ops",
-  peak_lat: "Latency",
+  peak_latency_us: "Latency",
+  //peak_lat: "Latency",
+  cpu_busy: "CPU Busy (%)",
+  vm_instance: "VM Instance",
+  read_io_type_cache: "Read IO Type: Cache",
+  read_io_type_ext_cache: "Read IO Type: Ext Cache",
+  read_io_type_disk: "Read IO Type: Disk",
+  read_io_type_bamboo_ssd: "Read IO Type: Bamboo SSD",
+  rdma_actual_latency: "RDMA Actual Latency (WAFL_SPINNP_WRITE)",
 };
 
 const metricKeys = [
@@ -24,19 +32,23 @@ const metricKeys = [
   "peak_iter",
   "ontap_ver",
   "peak_ops",
-  "peak_lat",
+  "peak_latency_us",
+  //"peak_lat",
+  "cpu_busy",
+  "vm_instance",
+  "read_io_type_cache",
+  "read_io_type_ext_cache",
+  "read_io_type_disk",
+  "read_io_type_bamboo_ssd",
+  "rdma_actual_latency",
 ];
 
 function formatValue(key, value) {
-  if (key === "peak_mbs") {
-    return `${value} MB/s`;
-  }
-  if (key === "peak_ops") {
-    return `${value} ops`;
-  }
-  if (key === "peak_lat" && value !== "-1") {
-    return `${value} ms`;
-  }
+  if (value === undefined || value === null || value === "") return "-";
+  if (key === "peak_mbs") return `${value} MB/s`;
+  if (key === "peak_ops") return `${value} ops`;
+  if (key === "peak_lat" && value !== "-1") return `${value} ms`;
+  if (key === "cpu_busy") return `${value}%`;
   return value;
 }
 
@@ -46,31 +58,34 @@ export default function RunIdForm() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [validationError, setValidationError] = useState(''); // Add validationError state
-
-  // New: iteration metrics
+  const [summary1, setSummary1] = useState({});
+  const [summary2, setSummary2] = useState({});
   const [iterMetrics1, setIterMetrics1] = useState([]);
   const [iterMetrics2, setIterMetrics2] = useState([]);
+  const [validationError, setValidationError] = useState('');
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setValidationError(''); // Clear previous validation error
     setResults([]);
+    setSummary1({});
+    setSummary2({});
     setIterMetrics1([]);
     setIterMetrics2([]);
+    setValidationError(''); 
 
-    // Validation check
     if (!runId1 || !runId2) {
       setValidationError('Please provide both Run IDs.');
-      console.log('Validation Error:', validationError); // Debugging log
+      console.log('Validation Error:', validationError); 
       setLoading(false);
       return;
     }
 
     if (runId1.length !== 9 || runId2.length !== 9) {
       setValidationError('Each Run ID must be exactly 9 characters long.');
+      console.log('Validation Error:', validationError);
       setLoading(false);
       return;
     }
@@ -96,15 +111,14 @@ export default function RunIdForm() {
       }
       setResults(newResults);
 
-      // Fetch iteration metrics for both run IDs in one call
       const graphResp = await fetch(`/api/fetch_graph_data/?run_id1=${runId1}&run_id2=${runId2}`);
       if (!graphResp.ok) throw new Error("Failed to fetch graph data");
       const graphData = await graphResp.json();
 
       setIterMetrics1(graphData.data_points[runId1] || []);
       setIterMetrics2(graphData.data_points[runId2] || []);
-      console.log("Metrics for runId1:", graphData.data_points[runId1]);
-      console.log("Metrics for runId2:", graphData.data_points[runId2]);
+      setSummary1(graphData.summary[runId1] || {});
+      setSummary2(graphData.summary[runId2] || {});
     } catch (err) {
       setError(err.message);
     } finally {
@@ -112,26 +126,40 @@ export default function RunIdForm() {
     }
   };
 
-  // Merge iteration metrics for chart
-  function mergeIterationMetrics(metrics1, metrics2) {
-    const map1 = {};
-    metrics1.forEach(m => { map1[m.iteration] = m; });
-    const map2 = {};
-    metrics2.forEach(m => { map2[m.iteration] = m; });
-
-    const allIterations = Array.from(new Set([
-      ...metrics1.map(m => m.iteration),
-      ...metrics2.map(m => m.iteration),
-    ]));
-
-    return allIterations.map(iteration => ({
-      iteration,
-      latency1: map1[iteration]?.latency_us ?? null,
-      throughput1: map1[iteration]?.throughput_mbs ?? null,
-      latency2: map2[iteration]?.latency_us ?? null,
-      throughput2: map2[iteration]?.throughput_mbs ?? null,
+  const lineData1 = iterMetrics1
+    .filter(m => m.throughput_mbs !== null && m.latency_us !== null)
+    .sort((a, b) => a.throughput_mbs - b.throughput_mbs)
+    .map(m => ({
+      throughput: m.throughput_mbs,
+      latency: m.latency_us,
+      iteration: m.iteration
     }));
-  }
+
+  const lineData2 = iterMetrics2
+    .filter(m => m.throughput_mbs !== null && m.latency_us !== null)
+    .sort((a, b) => a.throughput_mbs - b.throughput_mbs)
+    .map(m => ({
+      throughput: m.throughput_mbs,
+      latency: m.latency_us,
+      iteration: m.iteration
+    }));
+
+  const allThroughputs = Array.from(new Set([
+    ...lineData1.map(d => d.throughput),
+    ...lineData2.map(d => d.throughput)
+  ])).sort((a, b) => a - b);
+
+  const mergedLineData = allThroughputs.map(throughput => {
+    const d1 = lineData1.find(d => d.throughput === throughput);
+    const d2 = lineData2.find(d => d.throughput === throughput);
+    return {
+      throughput,
+      latency1: d1 ? d1.latency : null,
+      latency2: d2 ? d2.latency : null,
+      iteration1: d1 ? d1.iteration : null,
+      iteration2: d2 ? d2.iteration : null,
+    };
+  });
 
   return (
     <div>
@@ -142,7 +170,6 @@ export default function RunIdForm() {
           <div className="subtitle">
             Provide both valid run IDs to retrieve and compare performance data from Grover.
           </div>
-          {validationError && <p style={{ color: 'red' }}>{validationError}</p>} {/* Display validation error */}
           <div className="input-group">
             <label htmlFor="runId1" className="label">Run ID 1:</label>
             <input
@@ -172,6 +199,10 @@ export default function RunIdForm() {
 
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>Error: {error}</p>}
+        {/* Added this line */}
+        {validationError && <p style={{ color: "red" }}>Validation Error: {validationError}</p>}
+
+        {/* Comparison Table */}
         {results.length === 2 && (
           <div className="comparison-table">
             <h3>Comparison Table</h3>
@@ -187,12 +218,10 @@ export default function RunIdForm() {
               <tbody>
                 {metricKeys.map((key) => (
                   <tr key={key}>
-                    <td className="table-key">
-                      {keyDisplayNames[key] || key}
-                    </td>
-                    {results.map(({ data, runId }) => (
-                      <td key={runId} className="table-value">
-                        {formatValue(key, data[key]) || "-"}
+                    <td className="table-key">{keyDisplayNames[key] || key}</td>
+                    {[summary1, summary2].map((summary, idx) => (
+                      <td key={results[idx].runId} className="table-value">
+                        {formatValue(key, summary[key])}
                       </td>
                     ))}
                   </tr>
@@ -204,20 +233,36 @@ export default function RunIdForm() {
 
         {/* Latency & Throughput Chart */}
         {iterMetrics1.length > 0 && iterMetrics2.length > 0 && (
-          <div style={{ width: "100%", height: 400, marginTop: 32 }}>
-            <h3>Latency and Throughput per Iteration</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={mergeIterationMetrics(iterMetrics1, iterMetrics2)}>
+          <div style={{ width: "70%", height: 600, marginTop: 32 }}>
+            <h3>Latency vs Throughput per Iteration (Line Graph)</h3>
+            <ResponsiveContainer width="70%" height={600}>
+              <LineChart data={mergedLineData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="iteration" />
-                <YAxis yAxisId="left" label={{ value: 'Latency (us)', angle: -90, position: 'insideLeft' }} />
-                <YAxis yAxisId="right" orientation="right" label={{ value: 'Throughput (MB/s)', angle: 90, position: 'insideRight' }} />
+                <XAxis
+                  dataKey="throughput"
+                  type="number"
+                  label={{ value: "Throughput (MB/s)", position: "insideBottom", offset: -5 }}
+                />
+                <YAxis
+                  type="number"
+                  label={{ value: "Latency (us)", angle: -90, position: "insideLeft" }}
+                />
                 <Tooltip />
                 <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="latency1" stroke="#8884d8" name={`Latency (${runId1})`} />
-                <Line yAxisId="left" type="monotone" dataKey="latency2" stroke="#ff7300" name={`Latency (${runId2})`} />
-                <Line yAxisId="right" type="monotone" dataKey="throughput1" stroke="#82ca9d" name={`Throughput (${runId1})`} />
-                <Line yAxisId="right" type="monotone" dataKey="throughput2" stroke="#0088FE" name={`Throughput (${runId2})`} />
+                <Line
+                  type="linear"
+                  dataKey="latency1"
+                  stroke="red"
+                  name={`Latency (${runId1})`}
+                  connectNulls
+                />
+                <Line
+                  type="linear"
+                  dataKey="latency2"
+                  stroke="blue"
+                  name={`Latency (${runId2})`}
+                  connectNulls
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>

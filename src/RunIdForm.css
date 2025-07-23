@@ -116,7 +116,7 @@
 
 .result-table table {
   border-collapse: collapse;
-  width: 100%;
+  width: 50%;
 }
 
 .result-table .table-key {
@@ -133,12 +133,12 @@
 
 .comparison-table {
   margin-top: 32px;
-  width: 100%;
+  width: 80%;
 }
 
 .comparison-table table {
   border-collapse: collapse;
-  width: 100%;
+  width: 70%;
 }
 
 .comparison-table th,
