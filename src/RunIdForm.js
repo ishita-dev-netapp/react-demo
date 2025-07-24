@@ -103,12 +103,19 @@ export default function RunIdForm() {
         } catch {
           obj = null;
         }
+        if(obj.workload === 0){
+          setValidationError('Invalid runId: ' + runId + '. Please provide a valid runId.');
+          console.log('Validation Error:', validationError);
+          setLoading(false);
+          return;
+        }
         if (obj) {
           newResults.push({ runId, data: obj });
         } else {
           setError("Invalid data format for " + runId);
         }
       }
+      
       setResults(newResults);
 
       const graphResp = await fetch(`/api/fetch_graph_data/?run_id1=${runId1}&run_id2=${runId2}`);
