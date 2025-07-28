@@ -101,6 +101,10 @@ class FetchGraphDataView(View):
             system_response = requests.get(system_url)
             system_text = system_response.text if system_response.ok else ""
 
+
+            # cloud_test_harness.log - pass URL only, not content
+            harness_log_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
+
             # system_node_virtual_machine_instance_show.txt
             vm_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/system_node_virtual_machine_instance_show.txt'
             vm_response = requests.get(vm_url)
@@ -124,6 +128,7 @@ class FetchGraphDataView(View):
             read_io_type_disk = extract_read_io_type(stats_text, 'disk')
             read_io_type_bamboo_ssd = extract_read_io_type(stats_text, 'bamboo_ssd')
             rdma_actual_latency = extract_rdma_actual_latency(wafl_text, 'WAFL_SPINNP_WRITE')
+            
 
             data_points.append({
                 'iteration': folder,
@@ -136,6 +141,7 @@ class FetchGraphDataView(View):
                 'read_io_type_disk': read_io_type_disk,
                 'read_io_type_bamboo_ssd': read_io_type_bamboo_ssd,
                 'rdma_actual_latency': rdma_actual_latency,
+                'harness_log': harness_log_url,
             })
 
         # Find peak throughput iteration
@@ -175,6 +181,7 @@ class FetchGraphDataView(View):
             "peak_throughput_iteration": peak_iteration,
             "peak_throughput_mbs": peak_point['throughput_mbs'] if peak_point else None,
             "peak_latency_us": peak_point['latency_us'] if peak_point else None,
+            "harness_log": peak_point['harness_log'] if peak_point else None,
         }
 
         return data_points, summary

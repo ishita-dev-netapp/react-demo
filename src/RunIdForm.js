@@ -22,6 +22,7 @@ const keyDisplayNames = {
   read_io_type_disk: "Read IO Type: Disk",
   read_io_type_bamboo_ssd: "Read IO Type: Bamboo SSD",
   rdma_actual_latency: "RDMA Actual Latency (WAFL_SPINNP_WRITE)",
+  harness_log: "Harness Log",
 };
 
 const metricKeys = [
@@ -41,6 +42,7 @@ const metricKeys = [
   "read_io_type_disk",
   "read_io_type_bamboo_ssd",
   "rdma_actual_latency",
+    "harness_log"
 ];
 
 function formatValue(key, value) {
@@ -49,6 +51,13 @@ function formatValue(key, value) {
   if (key === "peak_ops") return `${value} ops`;
   if (key === "peak_lat" && value !== "-1") return `${value} ms`;
   if (key === "cpu_busy") return `${value}%`;
+  if (key === "harness_log" && value) {
+    return (
+      <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: "#007acc", textDecoration: "underline" }}>
+        Harness Logs
+      </a>
+    );
+  }
   return value;
 }
 
@@ -89,7 +98,7 @@ export default function RunIdForm() {
       setLoading(false);
       return;
     }
-
+    // fetch logic
     try {
       const runIds = [runId1, runId2];
       const newResults = [];
