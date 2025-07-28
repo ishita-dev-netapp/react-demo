@@ -3,15 +3,16 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views import View
 import re
+from functools import lru_cache
 
-# --- Helper extraction functions ---
+
 
 def extract_cpu_busy(text):
     match = re.search(r'cpu_busy:\s*([\d.]+)', text)
     return float(match.group(1)) if match else None
 
 def extract_vm_instance(text):
-    # Adjust regex as per your file's structure
+   
     match = re.search(r'Instance Type:\s*([^\s]+)', text)
     return match.group(1) if match else None
 
@@ -27,7 +28,8 @@ def extract_rdma_actual_latency(text, label):
 
 # --- Grover summary API ---
 
-@csrf_exempt
+@csrf_exempt    
+@lru_cache(maxsize=20)
 def fetch_run_data(request):
     runid = request.GET.get('runid')
     if not runid:
@@ -67,6 +69,7 @@ class FetchGraphDataView(View):
             return JsonResponse({'error': str(e)}, status=500)
 
     @staticmethod
+    @lru_cache(maxsize=20)
     def fetch_run_data(run_id):
         year_month = run_id[:4]
         base_url = (
