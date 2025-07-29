@@ -10,7 +10,6 @@ def extract_cpu_busy(text):
     return float(match.group(1)) if match else None
 
 def extract_vm_instance(text):
-
     match = re.search(r'Instance Type:\s*([^\s]+)', text)
     return match.group(1) if match else None
 
@@ -34,18 +33,17 @@ def fetch_run_data(request):
 
     # Check cache first
     cached_data = cache_instance.get(f"grover_{runid}")
-    if cached_data:
+    if cached_data is not None:
+        # Return cached data as application/json
         return HttpResponse(cached_data, content_type='application/json')
 
     url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{runid}?req_fields=purpose,user,peak_mbs,workload,peak_iter,ontap_ver,peak_ops,peak_lat"
     try:
         response = requests.get(url)
         response.raise_for_status()
-        
-        # Cache the response
+        # Only cache if not already present
         cache_instance.put(f"grover_{runid}", response.text)
-        
-        return HttpResponse(response.text, content_type=response.headers.get('Content-Type', 'text/plain'))
+        return HttpResponse(response.text, content_type=response.headers.get('Content-Type', 'application/json'))
     except requests.RequestException as e:
         return JsonResponse({'error': str(e)}, status=500)
 

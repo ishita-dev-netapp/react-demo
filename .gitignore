@@ -25,6 +25,8 @@ __pycache__/
 *.pyo
 *.pyd
 
+perfbackend/cache.json
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
