@@ -2,6 +2,7 @@ import requests
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views import View
+import json
 import re
 from .cache import cache_instance
 
@@ -24,6 +25,32 @@ def extract_rdma_actual_latency(text, label):
     return float(match.group(1)) if match else None
 
 # --- Grover summary API ---
+
+@csrf_exempt
+def fetch_multiple_runs(request):
+    runids_param = request.GET.get('runids')
+    if not runids_param:
+        return JsonResponse({'error': 'Missing runids parameter'}, status=400)
+
+    runids = [rid.strip() for rid in runids_param.split(',') if rid.strip()]
+    if not runids:
+        return JsonResponse({'error': 'No valid run IDs provided'}, status=400)
+
+    results = {}
+    for runid in runids:
+        # Use the same logic as FetchGraphDataView.fetch_run_data
+        data_points, summary = FetchGraphDataView.fetch_run_data(runid)
+        results[runid] = {
+            'data_points': data_points,
+            'summary': summary
+        }
+
+    # Save the results to a file in the project directory
+    file_path = 'runs_data.json'
+    with open(file_path, 'w') as f:
+        json.dump(results, f, indent=2)
+
+    return JsonResponse({'status': 'success', 'file': file_path})
 
 @csrf_exempt    
 def fetch_run_data(request):
