@@ -14,6 +14,7 @@ const keyDisplayNames = {
   ontap_ver: "ONTAP Version",
   peak_ops: "Achieved Ops",
   peak_latency_us: "Latency",
+  model : "Model",
   //peak_lat: "Latency",
   cpu_busy: "CPU Busy (%)",
   vm_instance: "VM Instance",
@@ -23,6 +24,7 @@ const keyDisplayNames = {
   read_io_type_bamboo_ssd: "Read IO Type: Bamboo SSD",
   rdma_actual_latency: "RDMA Actual Latency (WAFL_SPINNP_WRITE)",
   harness_log: "Harness Log",
+  read_ops: "Read Ops",
 };
 
 const metricKeys = [
@@ -34,6 +36,7 @@ const metricKeys = [
   "ontap_ver",
   "peak_ops",
   "peak_latency_us",
+  "model",
   //"peak_lat",
   "cpu_busy",
   "vm_instance",
@@ -42,7 +45,8 @@ const metricKeys = [
   "read_io_type_disk",
   "read_io_type_bamboo_ssd",
   "rdma_actual_latency",
-    "harness_log"
+    "harness_log",
+  "read_ops",
 ];
 
 function formatValue(key, value) {
@@ -176,6 +180,21 @@ export default function RunIdForm() {
       iteration2: d2 ? d2.iteration : null,
     };
   });
+  const areComparable = 
+  summary1 && summary2 &&
+  summary1.workload && summary2.workload &&
+  summary1.model && summary2.model &&
+  summary1.workload === summary2.workload &&
+  summary1.model === summary2.model;
+
+  const notComparableReason = (() => {
+  if (summary1 && summary2) {
+    if (summary1.workload !== summary2.workload) return "different workloads";
+    if (summary1.model !== summary2.model) return "different models";
+  }
+  return "unknown reason";
+})();
+
 
   return (
     <div>
@@ -187,7 +206,7 @@ export default function RunIdForm() {
             Provide both valid run IDs to retrieve and compare performance data from Grover.
           </div>
           <div className="input-group">
-            <label htmlFor="runId1" className="label">Run ID 1:</label>
+            <label htmlFor="runId1" className="label">Run ID 1 </label>
             <input
               id="runId1"
               type="text"
@@ -199,7 +218,7 @@ export default function RunIdForm() {
             />
           </div>
           <div className="input-group" style={{ marginTop: "16px" }}>
-            <label htmlFor="runId2" className="label">Run ID 2:</label>
+            <label htmlFor="runId2" className="label">Run ID 2 </label>
             <input
               id="runId2"
               type="text"
@@ -218,8 +237,44 @@ export default function RunIdForm() {
         {/* Added this line */}
         {validationError && <p style={{ color: "red" }}>Validation Error: {validationError}</p>}
 
+        {!loading && results.length === 2 && !areComparable && (
+          <div style={{ color: "red", margin: "16px 0" /* ishita*/ , textAlign: "center" }}>
+            These run IDs are not comparable as they have {notComparableReason}.<br />
+            Below are their individual details.
+          </div>
+        )}
+
+        {/* Show two separate tables if not comparable */}
+        {!loading && results.length === 2 && !areComparable && (
+          <div className='non-comparable-container'>
+            {[{ summary: summary1, runId: runId1 }, { summary: summary2, runId: runId2 }].map(({ summary, runId }) => (
+              <div className="individual-table" key={runId}>
+                <h4>Run ID: {runId}</h4>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      <th>{runId}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metricKeys.map((key) => (
+                      <tr key={key}>
+                        <td className="table-key">{keyDisplayNames[key] || key}</td>
+                        <td className="table-value">{formatValue(key, summary[key])}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+        ))}
+      </div>
+)}
+
         {/* Comparison Table */}
-        {results.length === 2 && (
+        {!loading &&results.length === 2 && areComparable &&(
+          <div className="results-container">
+            <div className="left-section">
           <div className="comparison-table">
             <h3>Comparison Table</h3>
             <table>
@@ -245,42 +300,46 @@ export default function RunIdForm() {
               </tbody>
             </table>
           </div>
-        )}
+          </div>
+        
 
-        {/* Latency & Throughput Chart */}
-        {iterMetrics1.length > 0 && iterMetrics2.length > 0 && (
-          <div style={{ width: "70%", height: 600, marginTop: 32 }}>
-            <h3>Latency vs Throughput per Iteration (Line Graph)</h3>
-            <ResponsiveContainer width="70%" height={600}>
-              <LineChart data={mergedLineData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="throughput"
-                  type="number"
-                  label={{ value: "Throughput (MB/s)", position: "insideBottom", offset: -5 }}
-                />
-                <YAxis
-                  type="number"
-                  label={{ value: "Latency (us)", angle: -90, position: "insideLeft" }}
-                />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="linear"
-                  dataKey="latency1"
-                  stroke="red"
-                  name={`Latency (${runId1})`}
-                  connectNulls
-                />
-                <Line
-                  type="linear"
-                  dataKey="latency2"
-                  stroke="blue"
-                  name={`Latency (${runId2})`}
-                  connectNulls
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="right-section">
+              {iterMetrics1.length > 0 && iterMetrics2.length > 0 && (
+                <div className="chart-container">
+                  <h3>Latency vs Throughput per Iteration</h3>
+                  <ResponsiveContainer width="100%" height="90%">
+                    <LineChart data={mergedLineData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="throughput"
+                        type="number"
+                        label={{ value: "Throughput (MB/s)", position: "insideBottom", offset: -5 }}
+                      />
+                      <YAxis
+                        type="number"
+                        label={{ value: "Latency (us)", angle: -90, position: "insideLeft" }}
+                      />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="linear"
+                        dataKey="latency1"
+                        stroke="red"
+                        name={`Latency (${runId1})`}
+                        connectNulls
+                      />
+                      <Line
+                        type="linear"
+                        dataKey="latency2"
+                        stroke="blue"
+                        name={`Latency (${runId2})`}
+                        connectNulls
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
