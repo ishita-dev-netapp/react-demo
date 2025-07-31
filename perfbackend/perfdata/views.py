@@ -226,6 +226,7 @@ class FetchGraphDataView(View):
             "peak_latency_us": peak_point['latency_us'] if peak_point else None,
             "harness_log": peak_point['harness_log'] if peak_point else None,
             "read_ops": peak_point['read_ops'] if peak_point else None,
+
         }
 
         # Cache the result
