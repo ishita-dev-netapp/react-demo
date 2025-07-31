@@ -21,3 +21,11 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+perfbackend/**/__pycache__/
+perfbackend/perfdata/__pycache__/
+perfbackend/perfbackend/__pycache__/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
