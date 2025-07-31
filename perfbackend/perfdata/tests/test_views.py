@@ -2,7 +2,6 @@ import pytest
 from django.test import Client
 from unittest.mock import patch, MagicMock
 
-
 from perfdata.views import (
     extract_cpu_busy, 
     extract_vm_instance, 
@@ -10,6 +9,7 @@ from perfdata.views import (
     extract_rdma_actual_latency,
     extract_read_ops,
 )
+
 @pytest.mark.django_db
 def test_extract_cpu_busy():
     text = "some info cpu_busy: 42.5 more text"
@@ -43,64 +43,58 @@ def test_extract_read_ops():
 @pytest.mark.django_db
 @patch("perfdata.views.requests.get")
 def test_fetch_run_data_view(mock_get):
-    # Mock the external API response
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.text = '{"purpose":"test"}'
     mock_response.headers = {'Content-Type': 'application/json'}
     mock_get.return_value = mock_response
-
     client = Client()
-    response = client.get("/api/fetch_run_data/?runid=250717hav")
+    response = client.get("/api/fetch_run_data/?runid=250723hhx")
     assert response.status_code == 200
     assert b"test" in response.content
 
 @pytest.mark.django_db
 @patch("perfdata.views.requests.get")
 def test_fetch_graph_data_view(mock_get):
-    # Prepare mocks for all the requests made in the view
     mock_response = MagicMock()
     mock_response.ok = True
     mock_response.text = """
-        href="testdirview.cgi?p=/x/eng/perfcloud/RESULTS/2507/250717hav/ontap_command_output/5_257000"
+        href="testdirview.cgi?p=/x/eng/perfcloud/RESULTS/2507/250723hhx/ontap_command_output/5_257000"
     """
-    # For stats_workload.txt, stats_system.txt, etc.
     mock_response_stats = MagicMock()
     mock_response_stats.ok = True
     mock_response_stats.text = "latency:10.0us write_data:1048576b/s cpu_busy: 50.0"
-
     mock_response_vm = MagicMock()
     mock_response_vm.ok = True
     mock_response_vm.text = "Instance Type: Standard_L32s_v3"
-
-    # For grover summary
     mock_response_grover = MagicMock()
     mock_response_grover.ok = True
     mock_response_grover.json.return_value = {
-        "purpose": "Azure_STANDARD_L32S_v3 NFSv4.1 8k RandRead LDM SN EC MD 8-vol",
+        "purpose": "AWS_M6i_16XLARGE NFSv4.1 64k SeqWrite comp=60 dedup=0 SIDL HA OW=1 8-vol",
         "user": "perfcloudreg",
-        "peak_mbs": 1,
-        "workload": "rndread_op_rate",
-        "peak_iter": "5_257000",
+        "peak_mbs": 1014.04,
+        "workload": "seqwrite_op_rate",
+        "peak_iter": "5_38500.0",
         "ontap_ver": "R9.18.1xN_250722_0000",
-        "peak_ops": 1000,
-        "peak_lat": 10
+        "peak_ops": 15473,
+        "peak_lat": -1
     }
-
-    # Setup side effects for each call
     mock_get.side_effect = [
-        mock_response,  # testdirview.cgi
-        mock_response_stats,  # stats_workload.txt
-        mock_response_stats,  # stats_system.txt
-        mock_response_vm,     # system_node_virtual_machine_instance_show.txt
-        mock_response_stats,  # stats_wafl_flexlog.txt
-        mock_response_grover  # grover summary
+        mock_response,
+        mock_response_stats,
+        mock_response_stats,
+        mock_response_vm,
+        mock_response_stats,
+        mock_response_grover
     ]
-
     client = Client()
-    response = client.get("/api/fetch_graph_data/?run_id1=250717hav")
+    response = client.get("/api/fetch_graph_data/?run_id1=250723hhx")
     assert response.status_code == 200
     data = response.json()
     assert "data_points" in data
     assert "summary" in data
-
+    assert isinstance(data["data_points"], dict)
+    assert isinstance(data["summary"], dict)
+    assert "250723hhx" in data["data_points"]
+    assert isinstance(data["data_points"]["250723hhx"], list)
+    assert "250723hhx" in data["summary"]

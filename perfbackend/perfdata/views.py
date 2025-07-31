@@ -15,22 +15,16 @@ def extract_vm_instance(text):
     return match.group(1) if match else None
 
 def extract_read_io_type(text, io_type):
-    # Example line: read_io_type.cache: 12345
     match = re.search(rf'read_io_type\.{io_type}:\s*([\d.]+)', text)
     return float(match.group(1)) if match else None
 
-# ishita added
 def extract_read_ops(text):
-    # Example line: read_ops: 12345
     match = re.search(r'read_ops:\s*([^\s]+)', text)
     return match.group(1) if match else None
 
 def extract_rdma_actual_latency(text, label):
-    # Example line: rdma_actual_latency.WAFL_SPINNP_WRITE: 12.34
     match = re.search(rf'rdma_actual_latency\.{label}:\s*([\d.]+)', text)
     return float(match.group(1)) if match else None
-
-# --- Grover summary API ---
 
 @csrf_exempt
 def fetch_multiple_runs(request):
@@ -44,17 +38,13 @@ def fetch_multiple_runs(request):
 
     results = {}
     for runid in runids:
-        # Use the same logic as FetchGraphDataView.fetch_run_data
         data_points, summary = FetchGraphDataView.fetch_run_data(runid)
         results[runid] = {
             'summary': summary
         }
-
-    # Save the results to a file in the project directory
     file_path = 'runs_data.json'
     with open(file_path, 'w') as f:
         json.dump(results, f, indent=2)
-
     return JsonResponse({'status': 'success', 'file': file_path})
 
 @csrf_exempt    
@@ -63,29 +53,23 @@ def fetch_run_data(request):
     if not runid:
         return JsonResponse({'error': 'Missing runid parameter'}, status=400)
 
-    # Check cache first
     cached_data = cache_instance.get(f"grover_{runid}")
     if cached_data is not None:
-        # Return cached data as application/json
         return HttpResponse(cached_data, content_type='application/json')
 
     url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{runid}?req_fields=purpose,user,peak_mbs,workload,peak_iter,ontap_ver,peak_ops,peak_lat"
     try:
         response = requests.get(url)
         response.raise_for_status()
-        # Only cache if not already present
         cache_instance.put(f"grover_{runid}", response.text)
         return HttpResponse(response.text, content_type=response.headers.get('Content-Type', 'application/json'))
     except requests.RequestException as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-# --- Main detailed metrics view ---
-
 class FetchGraphDataView(View):
     def get(self, request):
         run_id1 = request.GET.get('run_id1')
         run_id2 = request.GET.get('run_id2')
-
         if not run_id1:
             return JsonResponse({'error': 'run_id1 parameter is required'}, status=400)
 
@@ -99,14 +83,13 @@ class FetchGraphDataView(View):
                 data_points2, summary2 = self.fetch_run_data(run_id2)
                 data[run_id2] = data_points2
                 summary[run_id2] = summary2
-
             return JsonResponse({'data_points': data, 'summary': summary}, safe=False)
+        
         except requests.exceptions.RequestException as e:
             return JsonResponse({'error': str(e)}, status=500)
 
     @staticmethod
     def fetch_run_data(run_id):
-        # Check cache first
         cached_data = cache_instance.get(run_id)
         if cached_data:
             return cached_data['data_points'], cached_data['summary']
@@ -119,47 +102,35 @@ class FetchGraphDataView(View):
         response = requests.get(base_url)
         response.raise_for_status()
         text = response.text
-
-        # Find iteration links
         links = re.findall(
             r'href="testdirview.cgi\?p=/x/eng/perfcloud/RESULTS/[^"]+/ontap_command_output/([^"/]+)"',
             text
         )
-
         data_points = []
-
         for folder in links:
             base_path = f"/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/ontap_command_output/{folder}"
-
-            # stats_workload.txt
             stats_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/stats_workload.txt'
             stats_response = requests.get(stats_url)
             stats_text = stats_response.text if stats_response.ok else ""
-
-            # stats_system.txt
+            
             system_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/stats_system.txt'
             system_response = requests.get(system_url)
             system_text = system_response.text if system_response.ok else ""
-
-            # cloud_test_harness.log - pass URL only, not content
+            
             harness_log_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
 
-            # system_node_virtual_machine_instance_show.txt
             vm_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/system_node_virtual_machine_instance_show.txt'
             vm_response = requests.get(vm_url)
             vm_text = vm_response.text if vm_response.ok else ""
 
-            # stats_wafl_flexlog.txt
             wafl_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/stats_wafl_flexlog.txt'
             wafl_response = requests.get(wafl_url)
             wafl_text = wafl_response.text if wafl_response.ok else ""
 
-            # Extract metrics
             latency_match = re.search(r'latency:(\d+\.\d+)us', stats_text)
             throughput_match = re.search(r'write_data:(\d+)b/s', stats_text)
             throughput_mbs = int(throughput_match.group(1)) / (1024 * 1024) if throughput_match else None
             latency = float(latency_match.group(1)) if latency_match else None
-
             cpu_busy = extract_cpu_busy(system_text)
             vm_instance = extract_vm_instance(vm_text)
             read_io_type_cache = extract_read_io_type(stats_text, 'cache')
@@ -169,7 +140,6 @@ class FetchGraphDataView(View):
             read_ops = extract_read_ops(stats_text)
             rdma_actual_latency = extract_rdma_actual_latency(wafl_text, 'WAFL_SPINNP_WRITE')
             
-
             data_points.append({
                 'iteration': folder,
                 'latency_us': latency,
@@ -185,11 +155,8 @@ class FetchGraphDataView(View):
                 'read_ops': read_ops,
             })
 
-        # Find peak throughput iteration
         peak_point = max(data_points, key=lambda x: x.get('throughput_mbs', 0) or 0) if data_points else None
         peak_iteration = peak_point['iteration'] if peak_point else None
-
-        # Now, fetch Grover summary for top fields
         grover_fields = ["purpose", "user", "peak_mbs", "workload", "peak_iter", "ontap_ver", "peak_ops", "peak_lat", "model"]
         grover_url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{run_id}?req_fields={','.join(grover_fields)}"
         grover_data = {}
@@ -200,9 +167,7 @@ class FetchGraphDataView(View):
         except Exception:
             pass
 
-        # Compose summary using grover_data and peak_point
         summary = {
-            # Grover summary fields
             "purpose": grover_data.get("purpose"),
             "user": grover_data.get("user"),
             "peak_mbs": grover_data.get("peak_mbs"),
@@ -212,7 +177,6 @@ class FetchGraphDataView(View):
             "peak_ops": grover_data.get("peak_ops"),
             "peak_lat": grover_data.get("peak_lat"),
             "model": grover_data.get("model"),
-            # Custom fields (from peak iteration)
             "cpu_busy": peak_point['cpu_busy'] if peak_point else None,
             "vm_instance": peak_point['vm_instance'] if peak_point else None,
             "read_io_type_cache": peak_point['read_io_type_cache'] if peak_point else None,
@@ -225,13 +189,11 @@ class FetchGraphDataView(View):
             "peak_latency_us": peak_point['latency_us'] if peak_point else None,
             "harness_log": peak_point['harness_log'] if peak_point else None,
             "read_ops": peak_point['read_ops'] if peak_point else None,
-
         }
 
-        # Cache the result
         cache_data = {
+            'data_points': data_points,
             'summary': summary
         }
         cache_instance.put(run_id, cache_data)
-
         return data_points, summary

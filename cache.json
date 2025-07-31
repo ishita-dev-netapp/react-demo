@@ -1,0 +1,54 @@
+{
+  "grover_250717hav": "{\"purpose\":\"test\"}",
+  "250717hav": {
+    "summary": {
+      "purpose": "Azure_STANDARD_L32S_v3 NFSv4.1 8k RandRead LDM SN EC MD 8-vol",
+      "user": "perfcloudreg",
+      "peak_mbs": 1,
+      "workload": "rndread_op_rate",
+      "peak_iter": "5_257000",
+      "ontap_ver": "R9.18.1xN_250722_0000",
+      "peak_ops": 1000,
+      "peak_lat": 10,
+      "model": null,
+      "cpu_busy": 50.0,
+      "vm_instance": "Standard_L32s_v3",
+      "read_io_type_cache": null,
+      "read_io_type_ext_cache": null,
+      "read_io_type_disk": null,
+      "read_io_type_bamboo_ssd": null,
+      "rdma_actual_latency": null,
+      "peak_throughput_iteration": "5_257000",
+      "peak_throughput_mbs": 1.0,
+      "peak_latency_us": 10.0,
+      "harness_log": "http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/2507/250717hav/cloud_test_harness.log",
+      "read_ops": null
+    }
+  },
+  "grover_250723hhx": "{\"purpose\":\"test\"}",
+  "250723hhx": {
+    "summary": {
+      "purpose": "AWS_M6i_16XLARGE NFSv4.1 64k SeqWrite comp=60 dedup=0 SIDL HA OW=1 8-vol",
+      "user": "perfcloudreg",
+      "peak_mbs": 1014.04,
+      "workload": "seqwrite_op_rate",
+      "peak_iter": "5_38500.0",
+      "ontap_ver": "R9.18.1xN_250722_0000",
+      "peak_ops": 15473,
+      "peak_lat": -1,
+      "model": null,
+      "cpu_busy": 50.0,
+      "vm_instance": "Standard_L32s_v3",
+      "read_io_type_cache": null,
+      "read_io_type_ext_cache": null,
+      "read_io_type_disk": null,
+      "read_io_type_bamboo_ssd": null,
+      "rdma_actual_latency": null,
+      "peak_throughput_iteration": "5_257000",
+      "peak_throughput_mbs": 1.0,
+      "peak_latency_us": 10.0,
+      "harness_log": "http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/2507/250723hhx/cloud_test_harness.log",
+      "read_ops": null
+    }
+  }
+}

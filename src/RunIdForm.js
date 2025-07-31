@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
-import Navbar from './Navbar';
-import './RunIdForm.css';
+import React, { useState } from "react";
+import Navbar from "./Navbar";
+import "./RunIdForm.css";
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
-} from 'recharts';
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
 
 const keyDisplayNames = {
   purpose: "Test Purpose",
@@ -14,8 +21,7 @@ const keyDisplayNames = {
   ontap_ver: "ONTAP Version",
   peak_ops: "Achieved Ops",
   peak_latency_us: "Latency",
-  model : "Model",
-  //peak_lat: "Latency",
+  model: "Model",
   cpu_busy: "CPU Busy (%)",
   vm_instance: "VM Instance",
   read_io_type_cache: "Read IO Type: Cache",
@@ -37,7 +43,6 @@ const metricKeys = [
   "peak_ops",
   "peak_latency_us",
   "model",
-  //"peak_lat",
   "cpu_busy",
   "vm_instance",
   "read_io_type_cache",
@@ -45,7 +50,7 @@ const metricKeys = [
   "read_io_type_disk",
   "read_io_type_bamboo_ssd",
   "rdma_actual_latency",
-    "harness_log",
+  "harness_log",
   "read_ops",
 ];
 
@@ -57,7 +62,12 @@ function formatValue(key, value) {
   if (key === "cpu_busy") return `${value}%`;
   if (key === "harness_log" && value) {
     return (
-      <a href={value} target="_blank" rel="noopener noreferrer" style={{ color: "#007acc", textDecoration: "underline" }}>
+      <a
+        href={value}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#007acc", textDecoration: "underline" }}
+      >
         Harness Logs
       </a>
     );
@@ -75,8 +85,7 @@ export default function RunIdForm() {
   const [summary2, setSummary2] = useState({});
   const [iterMetrics1, setIterMetrics1] = useState([]);
   const [iterMetrics2, setIterMetrics2] = useState([]);
-  const [validationError, setValidationError] = useState('');
-
+  const [validationError, setValidationError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,22 +96,22 @@ export default function RunIdForm() {
     setSummary2({});
     setIterMetrics1([]);
     setIterMetrics2([]);
-    setValidationError(''); 
+    setValidationError("");
 
     if (!runId1 || !runId2) {
-      setValidationError('Please provide both Run IDs.');
-      console.log('Validation Error:', validationError); 
+      setValidationError("Please provide both Run IDs.");
+      console.log("Validation Error:", validationError);
       setLoading(false);
       return;
     }
 
     if (runId1.length !== 9 || runId2.length !== 9) {
-      setValidationError('Each Run ID must be exactly 9 characters long.');
-      console.log('Validation Error:', validationError);
+      setValidationError("Each Run ID must be exactly 9 characters long.");
+      console.log("Validation Error:", validationError);
       setLoading(false);
       return;
     }
-    // fetch logic
+
     try {
       const runIds = [runId1, runId2];
       const newResults = [];
@@ -116,9 +125,11 @@ export default function RunIdForm() {
         } catch {
           obj = null;
         }
-        if(obj.workload === 0){
-          setValidationError('Invalid runId: ' + runId + '. Please provide a valid runId.');
-          console.log('Validation Error:', validationError);
+        if (obj.workload === 0) {
+          setValidationError(
+            "Invalid runId: " + runId + ". Please provide a valid runId."
+          );
+          console.log("Validation Error:", validationError);
           setLoading(false);
           return;
         }
@@ -128,13 +139,12 @@ export default function RunIdForm() {
           setError("Invalid data format for " + runId);
         }
       }
-      
       setResults(newResults);
-
-      const graphResp = await fetch(`/api/fetch_graph_data/?run_id1=${runId1}&run_id2=${runId2}`);
+      const graphResp = await fetch(
+        `/api/fetch_graph_data/?run_id1=${runId1}&run_id2=${runId2}`
+      );
       if (!graphResp.ok) throw new Error("Failed to fetch graph data");
       const graphData = await graphResp.json();
-
       setIterMetrics1(graphData.data_points[runId1] || []);
       setIterMetrics2(graphData.data_points[runId2] || []);
       setSummary1(graphData.summary[runId1] || {});
@@ -147,31 +157,33 @@ export default function RunIdForm() {
   };
 
   const lineData1 = iterMetrics1
-    .filter(m => m.throughput_mbs !== null && m.latency_us !== null)
+    .filter((m) => m.throughput_mbs !== null && m.latency_us !== null)
     .sort((a, b) => a.throughput_mbs - b.throughput_mbs)
-    .map(m => ({
+    .map((m) => ({
       throughput: m.throughput_mbs,
       latency: m.latency_us,
-      iteration: m.iteration
+      iteration: m.iteration,
     }));
 
   const lineData2 = iterMetrics2
-    .filter(m => m.throughput_mbs !== null && m.latency_us !== null)
+    .filter((m) => m.throughput_mbs !== null && m.latency_us !== null)
     .sort((a, b) => a.throughput_mbs - b.throughput_mbs)
-    .map(m => ({
+    .map((m) => ({
       throughput: m.throughput_mbs,
       latency: m.latency_us,
-      iteration: m.iteration
+      iteration: m.iteration,
     }));
 
-  const allThroughputs = Array.from(new Set([
-    ...lineData1.map(d => d.throughput),
-    ...lineData2.map(d => d.throughput)
-  ])).sort((a, b) => a - b);
+  const allThroughputs = Array.from(
+    new Set([
+      ...lineData1.map((d) => d.throughput),
+      ...lineData2.map((d) => d.throughput),
+    ])
+  ).sort((a, b) => a - b);
 
-  const mergedLineData = allThroughputs.map(throughput => {
-    const d1 = lineData1.find(d => d.throughput === throughput);
-    const d2 = lineData2.find(d => d.throughput === throughput);
+  const mergedLineData = allThroughputs.map((throughput) => {
+    const d1 = lineData1.find((d) => d.throughput === throughput);
+    const d2 = lineData2.find((d) => d.throughput === throughput);
     return {
       throughput,
       latency1: d1 ? d1.latency : null,
@@ -180,21 +192,23 @@ export default function RunIdForm() {
       iteration2: d2 ? d2.iteration : null,
     };
   });
-  const areComparable = 
-  summary1 && summary2 &&
-  summary1.workload && summary2.workload &&
-  summary1.model && summary2.model &&
-  summary1.workload === summary2.workload &&
-  summary1.model === summary2.model;
+  const areComparable =
+    summary1 &&
+    summary2 &&
+    summary1.workload &&
+    summary2.workload &&
+    summary1.model &&
+    summary2.model &&
+    summary1.workload === summary2.workload &&
+    summary1.model === summary2.model;
 
   const notComparableReason = (() => {
-  if (summary1 && summary2) {
-    if (summary1.workload !== summary2.workload) return "different workloads";
-    if (summary1.model !== summary2.model) return "different models";
-  }
-  return "unknown reason";
-})();
-
+    if (summary1 && summary2) {
+      if (summary1.workload !== summary2.workload) return "different workloads";
+      if (summary1.model !== summary2.model) return "different models";
+    }
+    return "unknown reason";
+  })();
 
   return (
     <div>
@@ -203,10 +217,13 @@ export default function RunIdForm() {
         <form className="form" onSubmit={handleSubmit}>
           <div className="title">Compare Two Run IDs</div>
           <div className="subtitle">
-            Provide both valid run IDs to retrieve and compare performance data from Grover.
+            Provide both valid run IDs to retrieve and compare performance data
+            from Grover.
           </div>
           <div className="input-group">
-            <label htmlFor="runId1" className="label">Run ID 1 </label>
+            <label htmlFor="runId1" className="label">
+              Run ID 1{" "}
+            </label>
             <input
               id="runId1"
               type="text"
@@ -218,7 +235,9 @@ export default function RunIdForm() {
             />
           </div>
           <div className="input-group" style={{ marginTop: "16px" }}>
-            <label htmlFor="runId2" className="label">Run ID 2 </label>
+            <label htmlFor="runId2" className="label">
+              Run ID 2{" "}
+            </label>
             <input
               id="runId2"
               type="text"
@@ -229,25 +248,41 @@ export default function RunIdForm() {
               required
             />
           </div>
-          <button type="submit" className="button" style={{ marginTop: "24px" }}>Compare</button>
+          <button
+            type="submit"
+            className="button"
+            style={{ marginTop: "24px" }}
+          >
+            Compare
+          </button>
         </form>
 
         {loading && <p>Loading...</p>}
         {error && <p style={{ color: "red" }}>Error: {error}</p>}
-        {/* Added this line */}
-        {validationError && <p style={{ color: "red" }}>Validation Error: {validationError}</p>}
+        {validationError && (
+          <p style={{ color: "red" }}>Validation Error: {validationError}</p>
+        )}
 
         {!loading && results.length === 2 && !areComparable && (
-          <div style={{ color: "red", margin: "16px 0" /* ishita*/ , textAlign: "center" }}>
-            These run IDs are not comparable as they have {notComparableReason}.<br />
+          <div
+            style={{
+              color: "red",
+              margin: "16px 0" /* ishita*/,
+              textAlign: "center",
+            }}
+          >
+            These run IDs are not comparable as they have {notComparableReason}.
+            <br />
             Below are their individual details.
           </div>
         )}
 
-        {/* Show two separate tables if not comparable */}
         {!loading && results.length === 2 && !areComparable && (
-          <div className='non-comparable-container'>
-            {[{ summary: summary1, runId: runId1 }, { summary: summary2, runId: runId2 }].map(({ summary, runId }) => (
+          <div className="non-comparable-container">
+            {[
+              { summary: summary1, runId: runId1 },
+              { summary: summary2, runId: runId2 },
+            ].map(({ summary, runId }) => (
               <div className="individual-table" key={runId}>
                 <h4>Run ID: {runId}</h4>
                 <table>
@@ -260,50 +295,52 @@ export default function RunIdForm() {
                   <tbody>
                     {metricKeys.map((key) => (
                       <tr key={key}>
-                        <td className="table-key">{keyDisplayNames[key] || key}</td>
-                        <td className="table-value">{formatValue(key, summary[key])}</td>
+                        <td className="table-key">
+                          {keyDisplayNames[key] || key}
+                        </td>
+                        <td className="table-value">
+                          {formatValue(key, summary[key])}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-        ))}
-      </div>
-)}
-
-        {/* Comparison Table */}
-        {!loading &&results.length === 2 && areComparable &&(
+            ))}
+          </div>
+        )}
+        {!loading && results.length === 2 && areComparable && (
           <div className="results-container">
             <div className="left-section">
-          <div className="comparison-table">
-            <h3>Comparison Table</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  {results.map(({ runId }) => (
-                    <th key={runId}>{runId}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {metricKeys.map((key) => (
-                  <tr key={key}>
-                    <td className="table-key">{keyDisplayNames[key] || key}</td>
-                    {[summary1, summary2].map((summary, idx) => (
-                      <td key={results[idx].runId} className="table-value">
-                        {formatValue(key, summary[key])}
-                      </td>
+              <div className="comparison-table">
+                <h3>Comparison Table</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      {results.map(({ runId }) => (
+                        <th key={runId}>{runId}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metricKeys.map((key) => (
+                      <tr key={key}>
+                        <td className="table-key">
+                          {keyDisplayNames[key] || key}
+                        </td>
+                        {[summary1, summary2].map((summary, idx) => (
+                          <td key={results[idx].runId} className="table-value">
+                            {formatValue(key, summary[key])}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        
-
-        <div className="right-section">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="right-section">
               {iterMetrics1.length > 0 && iterMetrics2.length > 0 && (
                 <div className="chart-container">
                   <h3>Latency vs Throughput per Iteration</h3>
@@ -313,11 +350,19 @@ export default function RunIdForm() {
                       <XAxis
                         dataKey="throughput"
                         type="number"
-                        label={{ value: "Throughput (MB/s)", position: "insideBottom", offset: -5 }}
+                        label={{
+                          value: "Throughput (MB/s)",
+                          position: "insideBottom",
+                          offset: -5,
+                        }}
                       />
                       <YAxis
                         type="number"
-                        label={{ value: "Latency (us)", angle: -90, position: "insideLeft" }}
+                        label={{
+                          value: "Latency (us)",
+                          angle: -90,
+                          position: "insideLeft",
+                        }}
                       />
                       <Tooltip />
                       <Legend />

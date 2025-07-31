@@ -27,6 +27,7 @@ __pycache__/
 
 perfbackend/cache.json
 perfbackend/runs_data.json
+perfbackend/.pytest_cache
 
 npm-debug.log*
 yarn-debug.log*
