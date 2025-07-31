@@ -1,6 +1,5 @@
-import React from 'react';
 import './Navbar.css'; 
-import logo from './netapp_logo_transparent.png'; // Path to your logo image
+import logo from './netapp_logo_transparent.png';
 const Navbar = () => {
     return (
         <div className="navbar">
