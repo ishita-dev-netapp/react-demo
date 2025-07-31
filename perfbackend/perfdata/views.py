@@ -21,6 +21,12 @@ def extract_read_io_type(text, io_type):
     match = re.search(rf'read_io_type\.{io_type}:\s*([\d.]+)', text)
     return float(match.group(1)) if match else None
 
+# ishita added
+def extract_read_ops(text):
+    # Example line: read_ops: 12345
+    match = re.search(r'read_ops:\s*([^\s]+)', text)
+    return match.group(1) if match else None
+
 def extract_rdma_actual_latency(text, label):
     # Example line: rdma_actual_latency.WAFL_SPINNP_WRITE: 12.34
     match = re.search(rf'rdma_actual_latency\.{label}:\s*([\d.]+)', text)
@@ -127,6 +133,7 @@ class FetchGraphDataView(View):
             read_io_type_ext_cache = extract_read_io_type(stats_text, 'ext_cache')
             read_io_type_disk = extract_read_io_type(stats_text, 'disk')
             read_io_type_bamboo_ssd = extract_read_io_type(stats_text, 'bamboo_ssd')
+            read_ops = extract_read_ops(stats_text)
             rdma_actual_latency = extract_rdma_actual_latency(wafl_text, 'WAFL_SPINNP_WRITE')
             
 
@@ -142,6 +149,7 @@ class FetchGraphDataView(View):
                 'read_io_type_bamboo_ssd': read_io_type_bamboo_ssd,
                 'rdma_actual_latency': rdma_actual_latency,
                 'harness_log': harness_log_url,
+                'read_ops': read_ops,
             })
 
         # Find peak throughput iteration
@@ -149,7 +157,7 @@ class FetchGraphDataView(View):
         peak_iteration = peak_point['iteration'] if peak_point else None
 
         # Now, fetch Grover summary for top fields
-        grover_fields = ["purpose", "user", "peak_mbs", "workload", "peak_iter", "ontap_ver", "peak_ops", "peak_lat"]
+        grover_fields = ["purpose", "user", "peak_mbs", "workload", "peak_iter", "ontap_ver", "peak_ops", "peak_lat", "model"]
         grover_url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{run_id}?req_fields={','.join(grover_fields)}"
         grover_data = {}
         try:
@@ -170,6 +178,7 @@ class FetchGraphDataView(View):
             "ontap_ver": grover_data.get("ontap_ver"),
             "peak_ops": grover_data.get("peak_ops"),
             "peak_lat": grover_data.get("peak_lat"),
+            "model": grover_data.get("model"),
             # Custom fields (from peak iteration)
             "cpu_busy": peak_point['cpu_busy'] if peak_point else None,
             "vm_instance": peak_point['vm_instance'] if peak_point else None,
@@ -182,6 +191,7 @@ class FetchGraphDataView(View):
             "peak_throughput_mbs": peak_point['throughput_mbs'] if peak_point else None,
             "peak_latency_us": peak_point['latency_us'] if peak_point else None,
             "harness_log": peak_point['harness_log'] if peak_point else None,
+            "read_ops": peak_point['read_ops'] if peak_point else None,
         }
 
         return data_points, summary
