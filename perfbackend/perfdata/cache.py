@@ -2,9 +2,10 @@ import json
 import os
 from collections import OrderedDict
 from threading import Lock
+from datetime import datetime
 
 class JSONLRUCache:
-    def __init__(self, cache_file='cache.json', max_size=20):
+    def __init__(self, cache_file='cache.json', max_size=4):
         self.cache_file = cache_file
         self.max_size = max_size
         self.lock = Lock()
@@ -38,6 +39,10 @@ class JSONLRUCache:
                 # Move to end (most recently used)
                 value = self.cache.pop(key)
                 self.cache[key] = value
+                # Update timestamp on access
+                if isinstance(value, dict):
+                    value['timestamp'] = datetime.now().isoformat()
+                    self.cache[key] = value
                 self._save_cache()
                 return value
             return None
@@ -45,13 +50,16 @@ class JSONLRUCache:
     def put(self, key, value):
         """Put value in cache, evict least recently used if necessary"""
         with self.lock:
+            # Always add/update timestamp
+            if isinstance(value, dict):
+                value = value.copy()
+                value['timestamp'] = datetime.now().isoformat()
             if key in self.cache:
                 # Update existing key, move to end
                 self.cache.pop(key)
             elif len(self.cache) >= self.max_size:
                 # Remove least recently used (first item)
                 self.cache.popitem(last=False)
-            
             # Add new item (most recently used)
             self.cache[key] = value
             self._save_cache()

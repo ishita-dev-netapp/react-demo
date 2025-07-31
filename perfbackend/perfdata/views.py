@@ -109,6 +109,7 @@ class FetchGraphDataView(View):
         # Check cache first
         cached_data = cache_instance.get(run_id)
         if cached_data:
+            # Only summary is cached, return empty list for data_points
             return cached_data['data_points'], cached_data['summary']
 
         year_month = run_id[:4]
@@ -230,6 +231,7 @@ class FetchGraphDataView(View):
 
         # Cache the result
         cache_data = {
+            'data_points': data_points,
             'summary': summary
         }
         cache_instance.put(run_id, cache_data)

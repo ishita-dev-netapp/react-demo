@@ -2,7 +2,6 @@ import pytest
 from django.test import Client
 from unittest.mock import patch, MagicMock
 
-
 from perfdata.views import (
     extract_cpu_busy, 
     extract_vm_instance, 
@@ -10,6 +9,7 @@ from perfdata.views import (
     extract_rdma_actual_latency,
     extract_read_ops,
 )
+
 @pytest.mark.django_db
 def test_extract_cpu_busy():
     text = "some info cpu_busy: 42.5 more text"
@@ -103,4 +103,3 @@ def test_fetch_graph_data_view(mock_get):
     data = response.json()
     assert "data_points" in data
     assert "summary" in data
-
