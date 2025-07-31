@@ -47,7 +47,6 @@ def fetch_multiple_runs(request):
         # Use the same logic as FetchGraphDataView.fetch_run_data
         data_points, summary = FetchGraphDataView.fetch_run_data(runid)
         results[runid] = {
-            'data_points': data_points,
             'summary': summary
         }
 
@@ -231,7 +230,6 @@ class FetchGraphDataView(View):
 
         # Cache the result
         cache_data = {
-            'data_points': data_points,
             'summary': summary
         }
         cache_instance.put(run_id, cache_data)
