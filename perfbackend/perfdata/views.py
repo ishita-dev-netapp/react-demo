@@ -2,14 +2,15 @@ import requests
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views import View
+import json
 import re
+from .cache import cache_instance
 
 def extract_cpu_busy(text):
     match = re.search(r'cpu_busy:\s*([\d.]+)', text)
     return float(match.group(1)) if match else None
 
 def extract_vm_instance(text):
-   
     match = re.search(r'Instance Type:\s*([^\s]+)', text)
     return match.group(1) if match else None
 
@@ -31,17 +32,51 @@ def extract_rdma_actual_latency(text, label):
 
 # --- Grover summary API ---
 
+@csrf_exempt
+def fetch_multiple_runs(request):
+    runids_param = request.GET.get('runids')
+    if not runids_param:
+        return JsonResponse({'error': 'Missing runids parameter'}, status=400)
+
+    runids = [rid.strip() for rid in runids_param.split(',') if rid.strip()]
+    if not runids:
+        return JsonResponse({'error': 'No valid run IDs provided'}, status=400)
+
+    results = {}
+    for runid in runids:
+        # Use the same logic as FetchGraphDataView.fetch_run_data
+        data_points, summary = FetchGraphDataView.fetch_run_data(runid)
+        results[runid] = {
+            'data_points': data_points,
+            'summary': summary
+        }
+
+    # Save the results to a file in the project directory
+    file_path = 'runs_data.json'
+    with open(file_path, 'w') as f:
+        json.dump(results, f, indent=2)
+
+    return JsonResponse({'status': 'success', 'file': file_path})
+
 @csrf_exempt    
 def fetch_run_data(request):
     runid = request.GET.get('runid')
     if not runid:
         return JsonResponse({'error': 'Missing runid parameter'}, status=400)
 
+    # Check cache first
+    cached_data = cache_instance.get(f"grover_{runid}")
+    if cached_data is not None:
+        # Return cached data as application/json
+        return HttpResponse(cached_data, content_type='application/json')
+
     url = f"http://grover.rtp.netapp.com/KO/rest/api/Runs/{runid}?req_fields=purpose,user,peak_mbs,workload,peak_iter,ontap_ver,peak_ops,peak_lat"
     try:
         response = requests.get(url)
         response.raise_for_status()
-        return HttpResponse(response.text, content_type=response.headers.get('Content-Type', 'text/plain'))
+        # Only cache if not already present
+        cache_instance.put(f"grover_{runid}", response.text)
+        return HttpResponse(response.text, content_type=response.headers.get('Content-Type', 'application/json'))
     except requests.RequestException as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -72,6 +107,11 @@ class FetchGraphDataView(View):
 
     @staticmethod
     def fetch_run_data(run_id):
+        # Check cache first
+        cached_data = cache_instance.get(run_id)
+        if cached_data:
+            return cached_data['data_points'], cached_data['summary']
+
         year_month = run_id[:4]
         base_url = (
             f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/testdirview.cgi'
@@ -101,7 +141,6 @@ class FetchGraphDataView(View):
             system_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p={base_path}/stats_system.txt'
             system_response = requests.get(system_url)
             system_text = system_response.text if system_response.ok else ""
-
 
             # cloud_test_harness.log - pass URL only, not content
             harness_log_url = f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/cloud_test_harness.log'
@@ -187,67 +226,14 @@ class FetchGraphDataView(View):
             "peak_latency_us": peak_point['latency_us'] if peak_point else None,
             "harness_log": peak_point['harness_log'] if peak_point else None,
             "read_ops": peak_point['read_ops'] if peak_point else None,
+
         }
 
+        # Cache the result
+        cache_data = {
+            'data_points': data_points,
+            'summary': summary
+        }
+        cache_instance.put(run_id, cache_data)
+
         return data_points, summary
-
-
-
-
-
-# class FetchGraphDataView(View):
-#     def get(self, request):
-#         run_id1 = request.GET.get('run_id1')
-#         run_id2 = request.GET.get('run_id2')
-
-#         if not run_id1:
-#             return JsonResponse({'error': 'run_id1 parameter is required'}, status=400)
-
-#         def fetch_run_data(run_id):
-#             year_month = run_id[:4]
-#             base_url = (
-#                 f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/testdirview.cgi'
-#                 f'?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/ontap_command_output'
-#             )
-#             print(f"Fetching base URL: {base_url}")
-#             response = requests.get(base_url)
-#             response.raise_for_status()
-#             text = response.text
-
-#             # Find iteration links
-#             links = re.findall(
-#                 r'href="testdirview.cgi\?p=/x/eng/perfcloud/RESULTS/[^"]+/ontap_command_output/([^"/]+)"',
-#                 text
-#             )
-#             print(f"Iteration folders found for {run_id}: {links}")
-
-#             data_points = []
-#             for folder in links:
-#                 stats_url = (
-#                     f'http://perfweb.gdl.englab.netapp.com/cgi-bin/perfcloud/view.cgi'
-#                     f'?p=/x/eng/perfcloud/RESULTS/{year_month}/{run_id}/ontap_command_output/{folder}/stats_workload.txt'
-#                 )
-#                 stats_response = requests.get(stats_url)
-#                 if stats_response.ok:
-#                     stats_text = stats_response.text
-#                     latency_match = re.search(r'latency:(\d+\.\d+)us', stats_text)
-#                     ops_match = re.search(r'ops:(\d+)/s', stats_text)
-#                     throughput_match = re.search(r'write_data:(\d+)b/s', stats_text)
-#                     if latency_match and throughput_match:
-#                         data_points.append({
-#                             'iteration': folder,
-#                             'latency_us': float(latency_match.group(1)),
-#                             'throughput_mbs': int(throughput_match.group(1)) / (1024 * 1024),
-#                         })
-#             return data_points
-
-#         try:
-#             data = {}
-#             data[run_id1] = fetch_run_data(run_id1)
-#             if run_id2:
-#                 data[run_id2] = fetch_run_data(run_id2)
-
-#             print(f"Data points collected: {data}")
-#             return JsonResponse({'data_points': data}, safe=False)
-#         except requests.exceptions.RequestException as e:
-#             return JsonResponse({'error': str(e)}, status=500)
