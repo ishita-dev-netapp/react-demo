@@ -51,8 +51,6 @@ def test_fetch_run_data_view(mock_get):
     client = Client()
     response = client.get("/api/fetch_run_data/?runid=250723hhx")
     assert response.status_code == 200
-    #assert b"test" in response.content
-    #ishita
     assert b"purpose" in response.content
 
 @pytest.mark.django_db

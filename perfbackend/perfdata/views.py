@@ -40,12 +40,10 @@ def fetch_multiple_runs(request):
     for runid in runids:
         data_points, summary = FetchGraphDataView.fetch_run_data(runid)
         results[runid] = {
+            'data_points': data_points,
             'summary': summary
         }
-    file_path = 'runs_data.json'
-    with open(file_path, 'w') as f:
-        json.dump(results, f, indent=2)
-    return JsonResponse({'status': 'success', 'file': file_path})
+    return JsonResponse({'status': 'success', 'data': results})
 
 @csrf_exempt    
 def fetch_run_data(request):

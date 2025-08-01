@@ -75,6 +75,31 @@ function formatValue(key, value) {
   return value;
 }
 
+// Helper function to determine if a field should be highlighted in red
+function shouldHighlightField(key, workload) {
+  if (!workload) return false;
+  
+  const workloadLower = workload.toLowerCase();
+  
+  // For workloads starting with seqwrite or rndwrite - only highlight rdma_actual_latency
+  if (workloadLower.startsWith("seqwrite") || workloadLower.startsWith("rndwrite")) {
+    return key === "rdma_actual_latency";
+  }
+  
+  // For workloads starting with seqread or rndread - highlight all IO type fields but NOT rdma_actual_latency
+  if (workloadLower.startsWith("seqread") || workloadLower.startsWith("rndread")) {
+    const readIOFields = [
+      "read_io_type_cache",
+      "read_io_type_ext_cache", 
+      "read_io_type_disk",
+      "read_io_type_bamboo_ssd"
+    ];
+    return readIOFields.includes(key);
+  }
+  
+  return false;
+}
+
 export default function RunIdForm() {
   const [mode, setMode] = useState("compare"); // "compare" or "single"
   const [runId1, setRunId1] = useState("");
@@ -429,7 +454,12 @@ export default function RunIdForm() {
                         <td className="table-key">
                           {keyDisplayNames[key] || key}
                         </td>
-                        <td className="table-value">
+                        <td 
+                          className="table-value"
+                          style={{
+                            color: shouldHighlightField(key, summary.workload) ? 'red' : 'inherit'
+                          }}
+                        >
                           {formatValue(key, summary[key])}
                         </td>
                       </tr>
@@ -463,7 +493,13 @@ export default function RunIdForm() {
                           {keyDisplayNames[key] || key}
                         </td>
                         {[summary1, summary2].map((summary, idx) => (
-                          <td key={results[idx].runId} className="table-value">
+                          <td 
+                            key={results[idx].runId} 
+                            className="table-value"
+                            style={{
+                              color: shouldHighlightField(key, summary.workload) ? 'red' : 'inherit'
+                            }}
+                          >
                             {formatValue(key, summary[key])}
                           </td>
                         ))}
